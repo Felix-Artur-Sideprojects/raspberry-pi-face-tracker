@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A Raspberry Pi camera mount that follows a face. Build notes, hardware photographs, and demonstrations from a side project by Felix and Artur.">
+  <meta name="color-scheme" content="light">
+  <title>Raspberry Pi Face Tracker | Felix &amp; Artur</title>
+  <style>
+    :root { --ink:#202b34; --subtle:#5b6570; --line:#d9dfe3; --link:#27556f; --paper:#fff; }
+    * { box-sizing:border-box; }
+    html { scroll-padding-top:24px; }
+    body { margin:0; color:var(--ink); background:var(--paper); font:16px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif; }
+    a { color:var(--link); text-underline-offset:4px; }
+    a:hover { text-decoration-thickness:2px; }
+    a:focus-visible,summary:focus-visible { outline:2px solid var(--link); outline-offset:5px; }
+    .skip { position:absolute; top:8px; left:12px; transform:translateY(-160%); background:white; padding:8px; }
+    .skip:focus { transform:none; }
+    .page { max-width:1040px; margin:auto; padding:0 28px; }
+    .masthead { display:flex; justify-content:space-between; gap:20px; padding:23px 0 18px; border-bottom:1px solid var(--line); font-size:13px; color:var(--subtle); }
+    .masthead a { color:inherit; text-decoration:none; }
+    .masthead span { text-align:right; }
+    header { padding:60px 0 34px; text-align:center; }
+    .eyebrow { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--subtle); }
+    h1,h2,h3 { font-family:Georgia,"Times New Roman",serif; font-weight:400; line-height:1.2; color:var(--ink); }
+    h1 { font-size:clamp(34px,5vw,52px); letter-spacing:-.025em; max-width:850px; margin:14px auto 20px; }
+    .authors { margin:0; font-size:15px; }
+    .authors a { text-decoration:none; }
+    .subtitle { color:var(--subtle); margin:12px auto 25px; max-width:630px; font-size:17px; }
+    nav { display:flex; justify-content:center; flex-wrap:wrap; gap:12px 24px; font-size:13px; }
+    nav a { text-decoration:none; border-bottom:1px solid var(--line); }
+    section { margin:48px 0; }
+    h2 { font-size:29px; margin:0 0 18px; }
+    h3 { font-size:21px; margin:0 0 12px; }
+    p { margin:0 0 17px; }
+    .prose { max-width:780px; margin-left:auto; margin-right:auto; }
+    .intro { font-size:18px; line-height:1.75; }
+    .section-number { display:block; font:11px/1.4 system-ui,sans-serif; letter-spacing:.12em; color:var(--subtle); margin-bottom:9px; }
+    figure { margin:0; }
+    img { max-width:100%; display:block; height:auto; }
+    .overview-figure { max-width:780px; margin:32px auto 0; }
+    .overview-figure img { border:1px solid var(--line); }
+    figcaption { margin-top:10px; color:var(--subtle); font-size:12px; line-height:1.6; }
+    .overview-facts { display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:17px 0; margin-top:28px; gap:12px; }
+    .overview-facts dt { font-size:11px; color:var(--subtle); }
+    .overview-facts dd { margin:4px 0 0; font-size:14px; }
+    .demo-grid { display:grid; grid-template-columns:minmax(0,.85fr) minmax(0,1.7fr); align-items:start; gap:28px; }
+    .video-frame { background:#111; border:1px solid var(--line); }
+    video { display:block; width:100%; height:auto; }
+    .phone-video { aspect-ratio:9/16; }
+    .interface-video { aspect-ratio:8/5; }
+    .demo-grid h3 { margin-bottom:15px; }
+    .demo-note { max-width:780px; margin:22px 0 0; color:var(--subtle); font-size:14px; }
+    .process { display:grid; grid-template-columns:repeat(4,1fr); margin:26px 0; padding:0; list-style:none; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+    .process li { padding:18px 14px 18px 0; font-size:14px; }
+    .process span { display:block; color:var(--subtle); font-size:11px; margin-bottom:4px; }
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:14px; text-align:left; }
+    th { border-bottom:1px solid #8c989f; font-size:12px; font-weight:600; color:var(--subtle); }
+    th,td { padding:12px 15px 12px 0; vertical-align:top; }
+    td { border-bottom:1px solid var(--line); }
+    .hardware-note { color:var(--subtle); font-size:13px; margin-top:18px; }
+    .photo-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:28px; }
+    .photo-grid img { width:100%; aspect-ratio:4/3; object-fit:contain; background:#f6f6f3; border:1px solid var(--line); }
+    .photo-grid a { display:block; }
+    .notes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:36px; border-top:1px solid var(--line); padding-top:30px; }
+    .notes p,.notes li { font-size:14px; }
+    ul { padding-left:20px; }
+    li+li { margin-top:8px; }
+    .references { font-size:13px; color:var(--subtle); border-top:1px solid var(--line); padding-top:22px; }
+    footer { border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:18px; padding:23px 0 35px; color:var(--subtle); font-size:12px; }
+    @media(max-width:680px) {
+      .page { padding:0 20px; }
+      header { padding-top:36px; }
+      .masthead { font-size:11px; }
+      .overview-facts,.process { grid-template-columns:repeat(2,1fr); }
+      .demo-grid,.notes { grid-template-columns:1fr; }
+      .phone-video { max-height:540px; }
+      .photo-grid { gap:18px; }
+      section { margin:36px 0; }
+      h2 { font-size:26px; }
+      footer { flex-direction:column; gap:4px; }
+    }
+    @media(max-width:430px) { .photo-grid { grid-template-columns:1fr; } }
+    @media print { nav,.skip { display:none; } section { break-inside:avoid; } body { font-size:11pt; } }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#overview">Skip to content</a>
+  <div class="page">
+    <div class="masthead"><a href="https://github.com/Felix-Artur-Sideprojects">Side projects</a><span>Engineering project notes · November 2026</span></div>
+    <header>
+      <div class="eyebrow">Working bench prototype</div>
+      <h1>A camera that follows a face</h1>
+      <p class="authors"><a href="https://github.com/Felix561">Felix</a> &amp; <a href="https://github.com/Artur-04">Artur</a></p>
+      <p class="subtitle">A Raspberry Pi, two servo motors, and a simple feedback loop for keeping a face near the centre of the image.</p>
+      <nav aria-label="Page sections"><a href="#overview">Overview</a><a href="#demonstrations">Demonstrations</a><a href="#hardware">Hardware</a><a href="#photographs">Photographs</a><a href="#notes">Build notes</a></nav>
+    </header>
+
+    <main>
+      <section id="overview">
+        <div class="prose">
+          <h2><span class="section-number">01 / OVERVIEW</span>The idea</h2>
+          <p class="intro">We wanted to build a small camera mount that could follow a person without someone turning it by hand. The camera finds a face in the image, and two motors adjust its horizontal and vertical direction.</p>
+          <p>The Raspberry Pi processes the camera image and controls the mount. A laptop displays the live view and controls in a browser. We first tested the camera and motors separately, then brought them together on the workbench.</p>
+        </div>
+        <figure class="overview-figure">
+          <a href="assets/images/complete-setup.jpg"><img src="assets/images/complete-setup.jpg" width="2200" height="1650" alt="The complete prototype with Raspberry Pi, servo controller, camera bracket, and connecting wires" fetchpriority="high"></a>
+          <figcaption>Figure 1. The complete bench setup. The camera mount connects to the servo controller, with the Raspberry Pi alongside it.</figcaption>
+          <dl class="overview-facts"><div><dt>Computer</dt><dd>Raspberry Pi 4B</dd></div><div><dt>Movement</dt><dd>Pan and tilt</dd></div><div><dt>Face detection</dt><dd>YuNet / OpenCV</dd></div><div><dt>Control interface</dt><dd>Web browser</dd></div></dl>
+        </figure>
+      </section>
+
+      <section id="demonstrations">
+        <h2><span class="section-number">02 / DEMONSTRATIONS</span>The prototype in use</h2>
+        <div class="demo-grid">
+          <figure>
+            <h3>The moving camera mount</h3>
+            <div class="video-frame"><video class="phone-video" controls playsinline preload="none" poster="assets/images/hardware-demo-poster.jpg" aria-label="Hardware demonstration: the camera mount follows a person"><source src="assets/videos/hardware-demo.mp4" type="video/mp4">Your browser cannot play this video. <a href="assets/videos/hardware-demo.mp4">Download the hardware demonstration.</a></video></div>
+            <figcaption>Video 1. The mount seen from outside while a person moves in front of it. About 31 seconds. <a href="assets/videos/hardware-demo.mp4" download>Download MP4</a>.</figcaption>
+          </figure>
+          <figure>
+            <h3>The live view in the browser</h3>
+            <div class="video-frame"><video class="interface-video" controls playsinline preload="none" poster="assets/images/tracking-interface-poster.jpg" aria-label="Screen recording of the live camera image and face-tracking controls"><source src="assets/videos/tracking-interface.mp4" type="video/mp4">Your browser cannot play this video. <a href="assets/videos/tracking-interface.mp4">Download the interface recording.</a></video></div>
+            <figcaption>Video 2. The green box marks the detected face. The cross marks the target position. Tracking measurements sit below the camera image. About 54 seconds. <a href="assets/videos/tracking-interface.mp4" download>Download MP4</a>.</figcaption>
+            <p class="demo-note">Recorded indoors on 7 November 2026. These are bench demonstrations. We have not yet measured tracking accuracy or the full delay between a person's movement and the camera's response. The two recordings play independently.</p>
+          </figure>
+        </div>
+      </section>
+
+      <section id="principle" class="prose">
+        <h2><span class="section-number">03 / WORKING PRINCIPLE</span>Closing the loop</h2>
+        <ol class="process"><li><span>01</span>Read the camera image</li><li><span>02</span>Find the face position</li><li><span>03</span>Correct the motor angles</li><li><span>04</span>Check the next image</li></ol>
+        <p>The controller compares the face position with the centre of the picture. A larger offset produces a faster correction, up to the selected speed limit. As the face moves towards the centre, the correction becomes smaller.</p>
+        <p>YuNet is the default face detector. We can also select OpenCV's Haar detector for comparison. The browser provides tracking on/off, manual movement, and speed settings. Tracking starts switched off.</p>
+      </section>
+
+      <section id="hardware">
+        <h2><span class="section-number">04 / HARDWARE</span>What we used</h2>
+        <div class="table-wrap"><table><caption class="skip">Components used in the face-tracking prototype</caption><thead><tr><th scope="col">Component</th><th scope="col">Quantity</th><th scope="col">Purpose</th></tr></thead><tbody>
+          <tr><td>Raspberry Pi 4B</td><td>1</td><td>Camera processing, motor commands, and the browser interface</td></tr>
+          <tr><td>CSI camera with OV5647 sensor</td><td>1</td><td>Capturing the scene; 5 MP sensor maximum resolution</td></tr>
+          <tr><td>MG995 servo motors</td><td>2</td><td>Horizontal rotation and vertical tilt</td></tr>
+          <tr><td>Metal pan/tilt bracket</td><td>1</td><td>Supporting the camera and both motors</td></tr>
+          <tr><td>PCA9685 controller</td><td>1</td><td>Sending control signals to the motors</td></tr>
+          <tr><td>External 5 V, 5 A supply</td><td>1</td><td>Powering the motors separately from the Pi</td></tr>
+          <tr><td>Pi supply and microSD card</td><td>1 each</td><td>Powering and running the Raspberry Pi</td></tr>
+          <tr><td>Wires, adapters, and inline fuse holder</td><td>Assorted</td><td>Power and control connections</td></tr>
+          <tr><td>Small enclosure/base</td><td>1</td><td>Holding the mount on the workbench</td></tr>
+        </tbody></table></div>
+        <p class="hardware-note">The wider parts inventory includes a distance sensor and laser modules. Neither is used in the face-tracking demonstration. The laser stays disconnected during tests with people.</p>
+      </section>
+
+      <section id="photographs">
+        <h2><span class="section-number">05 / PHOTOGRAPHS</span>A closer look at the build</h2>
+        <div class="photo-grid">
+          <figure><a href="assets/images/camera-mount.jpg"><img src="assets/images/camera-mount.jpg" alt="Camera fixed to the two-axis bracket above its base" loading="lazy"></a><figcaption>Figure 2. The camera and two-axis mount, fixed to a small base.</figcaption></figure>
+          <figure><a href="assets/images/servo-bracket.jpg"><img src="assets/images/servo-bracket.jpg" alt="Side view of the MG995 servos and metal mounting bracket" loading="lazy"></a><figcaption>Figure 3. Side view of the motors and bracket. The ribbon cable needs room to move.</figcaption></figure>
+          <figure><a href="assets/images/servo-controller.jpg"><img src="assets/images/servo-controller.jpg" alt="PCA9685 servo controller with wires connected" loading="lazy"></a><figcaption>Figure 4. The PCA9685 controller and its motor connections.</figcaption></figure>
+          <figure><a href="assets/images/raspberry-pi-board.jpg"><img src="assets/images/raspberry-pi-board.jpg" alt="Raspberry Pi 4B board on the workbench" loading="lazy"></a><figcaption>Figure 5. The Raspberry Pi used for image processing and control.</figcaption></figure>
+          <figure><a href="assets/images/fused-power-lead.jpg"><img src="assets/images/fused-power-lead.jpg" alt="Power cable with an inline fuse holder" loading="lazy"></a><figcaption>Figure 6. The motor power lead with its inline fuse holder.</figcaption></figure>
+          <figure><a href="assets/images/mount-and-controller.jpg"><img src="assets/images/mount-and-controller.jpg" alt="The mounted camera alongside the servo controller" loading="lazy"></a><figcaption>Figure 7. The mount and controller together during assembly.</figcaption></figure>
+        </div>
+      </section>
+
+      <section id="notes" class="notes">
+        <div>
+          <h2><span class="section-number">06 / BUILD NOTES</span>What needed adjustment</h2>
+          <p>The first tracking test moved both axes in the wrong direction. The software's correction directions had to match the physical mounting of the servos. Reversing both axes corrected that behaviour.</p>
+          <p>We then adjusted movement speed and the small target area around the image centre. Slow corrections could not keep up with movement; stronger corrections could overshoot. The browser controls let us test those settings without changing the wiring.</p>
+          <p>The motors have their own power supply. We check voltage, polarity, and connections before a test, and keep the camera cable clear of the bracket.</p>
+        </div>
+        <div>
+          <h2><span class="section-number">07 / CURRENT STATE</span>Working prototype</h2>
+          <p>The colour stream, face detection, and both servo axes have worked together in indoor demonstrations. Earlier camera checks ran at about 20 frames per second with a 640 by 480 output image.</p>
+          <p>The mounting and wiring are still at a prototype stage. Useful next checks would include:</p>
+          <ul><li>Settling time after a person changes direction.</li><li>Tracking at different distances and light levels.</li><li>The effect of cable routing and movement in the bracket.</li><li>Repeatability across several test runs.</li></ul>
+        </div>
+      </section>
+
+      <section class="references" aria-label="References">
+        <p>Built with <a href="https://opencv.org/">OpenCV</a>, the <a href="https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet">YuNet face detector</a>, and <a href="https://github.com/raspberrypi/picamera2">Picamera2</a>. Photographs and recordings by the project team.</p>
+      </section>
+    </main>
+    <footer><span>Felix &amp; Artur · Side projects</span><span>Prototype documentation · 2026</span></footer>
+  </div>
+</body>
+</html>
