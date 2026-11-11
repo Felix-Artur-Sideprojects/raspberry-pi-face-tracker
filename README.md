@@ -38,7 +38,7 @@ and motor tests before connecting them into one working prototype.
 
 ## Demonstration
 
-The recordings show an indoor test on 7 November 2026. One video shows the
+The recordings show an indoor test on 7 June 2026. One video shows the
 mount from outside; the other records the camera image and controls in the
 browser. They show the same type of demonstration from two viewpoints,
 but their playback is not synchronised automatically.
