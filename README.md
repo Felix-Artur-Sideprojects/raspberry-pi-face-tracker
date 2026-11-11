@@ -1,26 +1,5 @@
 # Raspberry Pi Face Tracker
 
-A small camera system that detects a face and automatically turns to keep
-it near the centre of the image.
-
-The project combines a Raspberry Pi, a camera, and a two-axis pan/tilt mount.
-A simple browser interface shows the live camera view and provides controls
-for automatic tracking and manual movement.
-
-## Main features
-
-- Live camera stream with face detection.
-- Automatic horizontal and vertical camera movement.
-- Browser controls for tracking, movement, and speed.
-
-## Current status
-
-Working prototype. We are refining the tracking behaviour and the interface.
-This repository currently contains the project overview; source code and
-setup instructions will follow.
-
-# Raspberry Pi Face Tracker
-
 A camera that turns to follow a face. A side project by Felix and Artur.
 
 ![The complete prototype on the workbench](site/assets/images/complete-setup.jpg)
@@ -38,7 +17,7 @@ and motor tests before connecting them into one working prototype.
 
 ## Demonstration
 
-The recordings show an indoor test on 7 June 2026. One video shows the
+The recordings show an indoor test on 7 November 2026. One video shows the
 mount from outside; the other records the camera image and controls in the
 browser. They show the same type of demonstration from two viewpoints,
 but their playback is not synchronised automatically.
@@ -52,15 +31,29 @@ The camera and its two motors are visible while a person moves in front of it.
 
 ### Live view and controls
 
-![The browser interface during face tracking](site/assets/images/tracking-interface-poster.jpg)
+[![Watch the browser interface during face tracking](site/assets/images/tracking-interface-poster.jpg)](site/assets/videos/tracking-interface.mp4)
 
 [Open the interface recording](site/assets/videos/tracking-interface.mp4), about 54 seconds.
 The green box marks the detected face. The cross in the image marks the
 target position. Measurements below the picture show the current tracking
 error and the requested motor positions.
 
-These are bench demonstrations, not controlled measurements of tracking
-accuracy or response time.
+Click either preview to open its MP4 file. For playback with both videos
+on one page, open [the project page](site/index.html) from a local copy
+of this repository. GitHub shows the HTML file as source; the page is not
+currently published.
+
+<!-- GitHub inline video playback requires an uploaded video attachment URL.
+The relative MP4 links above provide a fallback, not an inline player.
+When preparing the GitHub README later, upload each video through GitHub's
+Markdown attachment interface and place its returned URL on a separate line.
+Do not use a made-up attachment URL or an HTML video tag as a substitute.
+On GitHub Free, each video attachment must be under 10 MB. The hardware
+video is currently about 13 MB and needs a smaller copy for that upload.
+No attachment upload has been performed for this local draft. -->
+
+These recordings document the prototype in use. We have not measured
+tracking accuracy or the complete delay from camera exposure to motor movement.
 
 ## How it works
 
@@ -73,13 +66,54 @@ A larger position error produces a faster correction, up to the selected
 speed limit. Movement slows as the face approaches the centre. This is
 proportional control, with a little smoothing to reduce small, rapid movements.
 
-The camera processing and motor control run on the Pi. The laptop displays
-the browser interface. We can start or stop tracking, change the speed, or
-move the mount manually from there.
+The Raspberry Pi captures the camera images, runs the face detector, and
+calculates the motor corrections. It also runs the web server that sends
+the live video and interface to the laptop.
 
-We use YuNet, a small neural-network face detector, as the default. An older
-OpenCV Haar detector is also available for comparison. Both find the position
-of a face in the image.
+On the laptop, a normal web browser displays the video and runs the
+interface's buttons and controls. When we change a setting, the browser
+sends the command back to the Pi. The face-detection model runs on the Pi.
+
+## Two ways to detect a face
+
+We tried both a classical machine-learning detector and a small deep-learning
+model. Both are available in the browser controls, and we briefly showed
+the deep-learning option in the demonstration. YuNet is the default in the
+current application. We use pretrained detectors; we did not train our own.
+
+| | Haar cascade | YuNet |
+| --- | --- | --- |
+| Approach | Classical machine learning: a cascade of trained classifiers using Haar-like brightness patterns | Deep learning: a small convolutional neural network that learns image features during training |
+| Input in our application | A reduced greyscale image | A reduced colour image |
+| Result used for tracking | A rectangle around a face | A rectangle around a face and a detection confidence |
+| Role in the project | Our earlier approach, kept for comparison | Our current default |
+| Model parameters | Cascade stages and feature thresholds; a CNN parameter count would not be a useful direct comparison | 53,104 weights and bias values in the exported model |
+| Where it runs | Raspberry Pi CPU | Raspberry Pi CPU |
+
+Both detectors locate faces. They do not identify who a person is. The motor
+controller uses the detected face position in the same way with either option.
+We have not yet compared their accuracy and speed in a controlled test with
+the same recordings and settings.
+
+### Model size and speed
+
+The YuNet model is `face_detection_yunet_2023mar.onnx`, evaluated through
+OpenCV on the Raspberry Pi 4B CPU. Our setup uses no external TPU or other
+AI accelerator. Its file is 232,589 bytes, about 227 KiB, with FP32 weights.
+Counting the convolution weights and biases in this exported file gives
+53,104 parameters. Eight additional floating-point values are resize
+constants and are excluded from that count.
+
+The camera output is 640 by 480 pixels. Face detection uses a smaller
+320 by 240 image, which reduces the amount of processing. In one recorded
+YuNet run, the interface showed 28.9 ms for detection and 50.2 ms for the
+processing loop, at about 20 frames per second. The detection figure includes
+image resizing and processing around the model; it is not a measurement of
+neural-network inference alone.
+
+The small network and reduced input size made CPU processing practical for
+our indoor demonstration. Mechanical movement, image capture, and the video
+stream add their own delays. We have not measured the full response time.
 
 ## Hardware
 
@@ -144,15 +178,13 @@ movement on both axes. The interface includes manual movement, detector
 selection, speed settings, and measurements underneath the image.
 Tracking starts switched off.
 
-Earlier camera checks on the Pi ran at about 20 frames per second with a
-640 by 480 output image. That is a camera-processing figure, not a measured
-mechanical response time. We have not yet carried out a repeatable test of
-tracking accuracy, delay, or performance in different lighting.
+The indoor demonstration worked well enough to follow a person moving in
+front of the camera. Repeatable tests of tracking accuracy and performance
+in different lighting are still pending.
 
 The mounting and wiring are still at a prototype stage. We are documenting
 the build before adding source code and detailed setup instructions to
 this repository.
-
 
 ## People and references
 
