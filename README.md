@@ -153,12 +153,6 @@ The mounting and wiring are still at a prototype stage. We are documenting
 the build before adding source code and detailed setup instructions to
 this repository.
 
-## What we would test next
-
-- How quickly the camera settles after a person changes direction.
-- Whether tracking remains consistent at different distances and light levels.
-- How much cable routing and movement in the bracket affect the result.
-- Whether the same settings work reliably across repeated tests.
 
 ## People and references
 
