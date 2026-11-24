@@ -195,3 +195,9 @@ Built by [Felix](https://github.com/Felix561) and
 The prototype uses [OpenCV](https://opencv.org/), the
 [YuNet face detector](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet),
 and [Picamera2](https://github.com/raspberrypi/picamera2).
+
+## License
+
+The original application and website code are available under the [MIT license](LICENSE).
+See [third-party notices](THIRD_PARTY_NOTICES.md) for YuNet, the Haar cascade,
+and the Python dependencies. The demo photos and videos are outside the code license.
