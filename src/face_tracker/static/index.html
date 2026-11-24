@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pan/Tilt Face Tracker</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 24px;
+  color: #171717;
+  background: #f7f7f4;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+}
+header, main { max-width: 1074px; margin: 0 auto; }
+h1 { margin: 0 0 5px; font-family: Georgia, serif; font-size: 25px; font-weight: normal; }
+.subtitle { margin: 0 0 20px; color: #555; }
+.layout { display: grid; grid-template-columns: minmax(0, 720px) 330px; gap: 24px; align-items: start; }
+.camera-panel { min-width: 0; }
+.measurements { margin-top: 12px; padding: 8px 0; }
+.measurements-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.measurements table { table-layout: fixed; }
+.measurements td { padding: 3px 0; vertical-align: top; overflow-wrap: anywhere; }
+.measurements td:first-child { width: 56%; padding-right: 8px; }
+#error:empty { display: none; }
+figure { margin: 0; }
+img { display: block; width: 100%; background: #111; border: 1px solid #777; }
+figcaption { margin-top: 7px; color: #555; font-size: 12px; }
+section { border-top: 1px solid #777; padding: 12px 0 14px; }
+section:first-child { border-top: 2px solid #222; }
+h2 { margin: 0 0 10px; font-size: 14px; }
+label { display: block; margin: 8px 0 4px; }
+select, input[type=number] { width: 100%; padding: 6px; border: 1px solid #888; background: white; }
+input[type=range] { width: 100%; }
+button { padding: 7px 10px; margin: 4px 4px 4px 0; border: 1px solid #555; background: #fff; color: #111; cursor: pointer; }
+button.primary { background: #222; color: #fff; }
+button:active { background: #ddd; }
+.check { display: flex; gap: 8px; align-items: center; }
+.check input { margin: 0; }
+table { width: 100%; border-collapse: collapse; font-family: Consolas, monospace; font-size: 12px; }
+td { padding: 4px 0; border-bottom: 1px solid #ddd; }
+td:last-child { text-align: right; }
+.note { color: #555; line-height: 1.4; }
+#error { color: #a00000; white-space: pre-wrap; }
+@media (min-width: 901px) and (max-height: 850px) {
+  body { margin: 16px; }
+  .subtitle { margin-bottom: 14px; }
+  header, main { max-width: 994px; }
+  .layout { grid-template-columns: minmax(0, 640px) 330px; }
+}
+@media (max-width: 900px) {
+  body { margin: 14px; }
+  .layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .measurements-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Pan/Tilt Face Tracker</h1>
+  <p class="subtitle">Raspberry Pi 4B · Picamera2 · OpenCV · PCA9685</p>
+</header>
+<main class="layout">
+  <div class="camera-panel">
+    <figure>
+      <img src="/stream.mjpg" alt="Annotated colour camera stream">
+      <figcaption>
+        White: image target and deadband. Green: selected face.
+        Yellow: measured centre. Magenta: filtered centre.
+      </figcaption>
+    </figure>
+
+    <section class="measurements" aria-labelledby="measurements-heading">
+      <h2 id="measurements-heading">Measurements</h2>
+      <div class="measurements-grid">
+        <table aria-label="Detection and timing">
+          <tr><td>Faces</td><td id="faces">–</td></tr>
+          <tr><td>Confidence</td><td id="confidence">–</td></tr>
+          <tr><td>Frame rate</td><td id="fps">–</td></tr>
+          <tr><td>Detection</td><td id="detection">–</td></tr>
+          <tr><td>Loop time</td><td id="loop">–</td></tr>
+        </table>
+        <table aria-label="Position and angles">
+          <tr><td>Error X</td><td id="errorX">–</td></tr>
+          <tr><td>Error Y</td><td id="errorY">–</td></tr>
+          <tr><td>Pan command</td><td id="pan">–</td></tr>
+          <tr><td>Tilt command</td><td id="tilt">–</td></tr>
+        </table>
+        <table aria-label="Correction and hardware">
+          <tr><td>Pan correction</td><td id="panRate">–</td></tr>
+          <tr><td>Tilt correction</td><td id="tiltRate">–</td></tr>
+          <tr><td>Controller</td><td id="controller">–</td></tr>
+          <tr><td>PCA9685</td><td id="servo">–</td></tr>
+        </table>
+      </div>
+      <p id="error"></p>
+    </section>
+  </div>
+
+  <aside>
+    <section>
+      <h2>Run control</h2>
+      <button id="tracking" class="primary">Start tracking</button>
+      <button id="home">Home and disable</button>
+      <div id="mode" class="note">Observation mode</div>
+    </section>
+
+    <section>
+      <h2>Detector</h2>
+      <label for="detector">Method</label>
+      <select id="detector">
+        <option value="haar">Haar cascade (classical ML)</option>
+        <option value="yunet">YuNet (CNN / deep learning)</option>
+      </select>
+    </section>
+
+    <section>
+      <h2>Motion</h2>
+      <label for="speed">Maximum angular speed</label>
+      <input id="speed" type="range" min="5" max="240" step="5" value="120">
+      <input id="speedNumber" type="number" min="5" max="240" step="5" value="120">
+      <span>degrees / second</span>
+
+      <label class="check">
+        <input id="reversePan" type="checkbox">
+        Reverse pan correction
+      </label>
+      <label class="check">
+        <input id="reverseTilt" type="checkbox">
+        Reverse tilt correction
+      </label>
+
+      <p class="note">
+        Direction is preconfigured for this physical bracket. If its servo
+        horns are reassembled, use the manual test before changing it.
+      </p>
+    </section>
+
+    <section>
+      <h2>Manual direction test (5°)</h2>
+      <button data-axis="pan" data-degrees="-5">Pan −</button>
+      <button data-axis="pan" data-degrees="5">Pan +</button><br>
+      <button data-axis="tilt" data-degrees="-5">Tilt −</button>
+      <button data-axis="tilt" data-degrees="5">Tilt +</button>
+    </section>
+  </aside>
+</main>
+
+<script>
+const element = id => document.getElementById(id);
+let state = {tracking: false};
+let loadingStatus = false;
+
+async function post(path, body = {}) {
+  try {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body)
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Request failed");
+    await updateStatus();
+  } catch (error) {
+    element("error").textContent = String(error);
+  }
+}
+
+function changeSettings(values) {
+  return post("/api/settings", values);
+}
+
+element("tracking").onclick = () => {
+  changeSettings({tracking: !state.tracking});
+};
+
+element("home").onclick = () => post("/api/home");
+
+element("detector").onchange = event => {
+  changeSettings({detector: event.target.value});
+};
+
+function setSpeed(value) {
+  const speed = Math.max(5, Math.min(240, Number(value)));
+  element("speed").value = speed;
+  element("speedNumber").value = speed;
+  changeSettings({speed_dps: speed});
+}
+element("speed").onchange = event => setSpeed(event.target.value);
+element("speedNumber").onchange = event => setSpeed(event.target.value);
+
+element("reversePan").onchange = event => {
+  changeSettings({reverse_pan: event.target.checked});
+};
+element("reverseTilt").onchange = event => {
+  changeSettings({reverse_tilt: event.target.checked});
+};
+
+document.querySelectorAll("[data-axis]").forEach(button => {
+  button.onclick = () => {
+    post("/api/nudge", {
+      axis: button.dataset.axis,
+      degrees: Number(button.dataset.degrees)
+    });
+  };
+});
+
+function number(value, digits = 1) {
+  return typeof value === "number" ? value.toFixed(digits) : "–";
+}
+
+async function updateStatus() {
+  if (loadingStatus) return;
+  loadingStatus = true;
+  try {
+    const response = await fetch("/api/status", {cache: "no-store"});
+    if (!response.ok) throw new Error("Could not load tracker status");
+    state = await response.json();
+
+    element("tracking").textContent =
+      state.tracking ? "Stop tracking and home" : "Start tracking";
+    element("mode").textContent =
+      state.tracking ? "Tracking active" :
+      state.home_requested ? "Returning home" : "Observation mode";
+
+    element("detector").value = state.detector;
+    element("speed").value = state.speed_dps;
+    element("speedNumber").value = state.speed_dps;
+    element("reversePan").checked = state.reverse_pan;
+    element("reverseTilt").checked = state.reverse_tilt;
+
+    element("faces").textContent = state.faces;
+    element("confidence").textContent = number(state.confidence, 2);
+    element("fps").textContent = number(state.fps) + " fps";
+    element("detection").textContent = number(state.detection_ms) + " ms";
+    element("loop").textContent = number(state.loop_ms) + " ms";
+    element("errorX").textContent = number(state.error_x, 3);
+    element("errorY").textContent = number(state.error_y, 3);
+    element("pan").textContent = number(state.pan) + "°";
+    element("tilt").textContent = number(state.tilt) + "°";
+    element("panRate").textContent = number(state.pan_rate_dps) + "°/s";
+    element("tiltRate").textContent = number(state.tilt_rate_dps) + "°/s";
+    element("controller").textContent = state.controller_state || "–";
+    element("servo").textContent =
+      state.servo_available
+        ? (state.servo_outputs ? "connected, PWM on" : "connected, PWM off")
+        : "not available";
+
+    element("error").textContent =
+      state.application_error || state.servo_error || "";
+  } catch (error) {
+    element("error").textContent = String(error);
+  } finally {
+    loadingStatus = false;
+  }
+}
+
+updateStatus();
+setInterval(updateStatus, 400);
+</script>
+</body>
+</html>
